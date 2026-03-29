@@ -9,10 +9,10 @@ O MediaLuna é um reprodutor de mídia universal baseado na estética clássica 
 - **Adicionar Diretório:** Carregue pastas inteiras de uma vez.
 - **MP5 Factory:** Ferramenta integrada para converter seus arquivos comuns em ".mp5".
 
-## 🛠️ Como usar
+## Como usar
 1. Baixe o arquivo 'index.html'.
 2. Abra em qualquer navegador moderno.
 3. Arraste seus arquivos ou use os botões "+ Arq" ou "+ Pasta".
 
-## 🎨 Estética
+## Estética
 Interface baseada no windows 7
