@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MediaLuna Music Player v5.0 - MP5 EDITION</title>
+    <link rel="stylesheet" href="https://unpkg.com/7.css">
+    <style>
+        :root { --bg-color: #5A7EDC; --teal-bg: #008080; }
+        body { background-color: var(--bg-color); display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; font-family: "Tahoma", sans-serif; overflow: hidden; }
+        
+        .window { width: 560px; box-shadow: 2px 2px 20px rgba(0,0,0,0.6); }
+        #factory-interface { display: none; }
+
+        .screen-container { background: #000; height: 280px; border: 3px inset #ffffff; position: relative; overflow: hidden; display: flex; flex-direction: column; justify-content: center; align-items: center; }
+        
+        /* Displays */
+        video, #imgDisplay, #htmlDisplay { width: 100%; height: 100%; object-fit: contain; display: none; position: absolute; z-index: 8; background: #000; border: none; }
+        #textDisplay { width: 100%; height: 100%; background: #FFF; color: #000; padding: 10px; display: none; overflow-y: auto; font-family: 'Courier New', monospace; font-size: 12px; box-sizing: border-box; z-index: 9; white-space: pre-wrap; text-align: left; }
+        
+        .audio-viz { color: #0F0; text-align: center; width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 5; background: #000; }
+        
+        .seek-box { margin-top: 10px; }
+        .playlist-area { height: 110px; overflow-y: auto; background: white; border: 2px inset #7F9DB9; margin-top: 10px; }
+        .playlist-item { padding: 4px; cursor: pointer; font-size: 11px; border-bottom: 1px solid #EEE; color: #000; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .playlist-item.active { background: #316AC5; color: white; }
+        
+        .status-bar-custom { font-size: 11px; padding: 3px; background: #D4D0C8; border: 2px inset #fff; display: flex; justify-content: space-between; margin-top: 5px; color: #000;}
+        #context-menu { display: none; position: absolute; z-index: 1000; width: 200px; background: #D4D0C8; border: 2px outset white; box-shadow: 2px 2px 5px rgba(0,0,0,0.5); padding: 2px; }
+        .menu-item { padding: 4px 10px; font-size: 11px; cursor: default; display: flex; justify-content: space-between; color: #000; }
+        .menu-item:hover { background: #316AC5; color: white; }
+        input[type="file"] { display: none; }
+    </style>
+</head>
+<body oncontextmenu="return showContextMenu(event)">
+
+<div class="window">
+    <div class="title-bar">
+        <div class="title-bar-text" id="win-title">MediaLuna Music Player v5.0</div>
+        <div class="title-bar-controls">
+            <button aria-label="Minimize"></button>
+            <button aria-label="Maximize" onclick="toggleFullScreen()"></button>
+            <button aria-label="Close" onclick="location.reload()"></button>
+        </div>
+    </div>
+
+    <div class="window-body" id="player-interface">
+        <div class="screen-container">
+            <video id="videoPlayer" playsinline></video>
+            <img id="imgDisplay">
+            <iframe id="htmlDisplay"></iframe>
+            <div id="textDisplay"></div>
+            
+            <div id="audioVisual" class="audio-viz">
+                <div id="track-name" style="font-weight:bold; font-size:14px; padding: 0 15px;">MediaLuna 5.0 - By Bryan404</div>
+                <div id="track-time-display" style="font-family: monospace; color: #0f0; margin-top: 10px;">00:00 / 00:00</div>
+            </div>
+        </div>
+
+        <div class="seek-box">
+            <input type="range" id="seekSlider" value="0" min="0" max="100" step="0.1" style="width:100%">
+        </div>
+
+        <div class="controls" style="display:flex; justify-content:space-between; margin-top:5px; gap:2px;">
+            <button onclick="skipTime(-10)"><< 10s</button>
+            <button onclick="prevTrack()">|<<</button>
+            <button onclick="togglePlay()" id="playBtn" style="font-weight: bold; flex-grow:1;">Tocar</button>
+            <button onclick="nextTrack()">>>|</button>
+            <button onclick="skipTime(10)">10s >></button>
+            <button onclick="document.getElementById('fileInput').click()">+ Arq</button>
+            <button onclick="document.getElementById('folderInput').click()">+ Pasta</button>
+        </div>
+
+        <div class="playlist-area" id="playlist"></div>
+    </div>
+
+    <div class="window-body" id="factory-interface">
+        <div style="padding: 10px; background: #D4D0C8; border: 1px solid #808080;">
+            <p><strong>MP5 Factory - Conversor</strong></p>
+            <input id="factoryFileName" type="text" readonly style="width:100%; margin-bottom:5px;">
+            <button onclick="document.getElementById('sourceFile').click()" style="width:100%">Escolher Arquivo Original</button>
+            <select id="mp5Type" style="width:100%; margin:10px 0;">
+                <option value="audio">🎵 Áudio (MP#+MP3)</option>
+                <option value="video">🎬 Vídeo (MP#+MP4)</option>
+                <option value="image">🖼️ Imagem (MP1+MP1)</option>
+                <option value="text">📝 Texto/HTML (MP#+MP#)</option>
+            </select>
+            <button id="generateBtn" style="width:100%; font-weight:bold; height: 30px;">GERAR MP5</button>
+        </div>
+    </div>
+
+    <div class="window-body" style="padding-top:0;">
+        <div class="field-row" style="display: flex; align-items: center; gap: 10px;">
+            <label style="font-size: 11px;">Volume:</label>
+            <input type="range" id="volSlider" min="0" max="1" step="0.01" value="0.8" style="flex-grow: 1;">
+        </div>
+        <div class="status-bar-custom">
+            <div><span id="file-format">MP5 ENGINE</span></div>
+            <div id="play-mode-status">Mode: Normal</div>
+        </div>
+    </div>
+</div>
+
+<div id="context-menu">
+    <div class="menu-item" onclick="switchMode('player')">▶ MediaLuna Player</div>
+    <div class="menu-item" onclick="switchMode('factory')">🛠 MP5 Factory</div>
+    <hr>
+    <div class="menu-item" onclick="toggleOption('shuffle')"><span>🔀 Aleatório</span><span id="chk-shuffle"></span></div>
+    <div class="menu-item" onclick="toggleOption('repeat')"><span>🔂 Repetir Uma</span><span id="chk-repeat"></span></div>
+    <hr>
+    <div class="menu-item" onclick="clearPlaylist()">Limpar Tudo</div>
+</div>
+
+<input type="file" id="fileInput" accept="*" multiple>
+<input type="file" id="folderInput" webkitdirectory directory multiple>
+<input type="file" id="sourceFile">
+
+<script>
+    let playlist = [];
+    let currentIndex = -1;
+    let audio = new Audio();
+    let video = document.getElementById('videoPlayer');
+    let currentMedia = audio;
+    let config = { shuffle: false, repeat: false };
+
+    function switchMode(m) {
+        document.getElementById('player-interface').style.display = m === 'player' ? 'block' : 'none';
+        document.getElementById('factory-interface').style.display = m === 'factory' ? 'block' : 'none';
+        document.body.style.backgroundColor = m === 'factory' ? "var(--teal-bg)" : "var(--bg-color)";
+    }
+
+    document.getElementById('fileInput').onchange = (e) => addFiles(e.target.files);
+    document.getElementById('folderInput').onchange = (e) => addFiles(e.target.files);
+    document.getElementById('sourceFile').onchange = (e) => {
+        if(e.target.files[0]) document.getElementById('factoryFileName').value = e.target.files[0].name;
+    };
+
+    function addFiles(files) {
+        playlist = [...playlist, ...Array.from(files)];
+        renderPlaylist();
+        if(currentIndex === -1) loadTrack(0);
+    }
+
+    async function loadTrack(index) {
+        if(index < 0 || index >= playlist.length) return;
+        audio.pause(); video.pause();
+        
+        const file = playlist[index];
+        const ext = file.name.split('.').pop().toLowerCase();
+        let contentUrl = URL.createObjectURL(file);
+        let mode = "audio";
+
+        // Limpar tela
+        [video, document.getElementById('imgDisplay'), document.getElementById('textDisplay'), document.getElementById('htmlDisplay'), document.getElementById('audioVisual')].forEach(el => el.style.display = 'none');
+
+        if (ext === 'mp5') {
+            const buffer = await file.arrayBuffer();
+            const bytes = new Uint8Array(buffer);
+            const decoder = new TextDecoder();
+            const prefix = decoder.decode(bytes.slice(0, 3));
+            const suffix = decoder.decode(bytes.slice(bytes.length - 3));
+            const content = bytes.slice(3, bytes.length - 3);
+
+            if(prefix === "MP#" && suffix === "MP#") mode = "text";
+            else if(prefix === "MP1") mode = "image";
+            else if(suffix === "MP4") mode = "video";
+            else mode = "audio";
+            contentUrl = URL.createObjectURL(new Blob([content]));
+        } else {
+            if (['mp4','webm'].includes(ext)) mode = "video";
+            else if (['jpg','png','gif','webp'].includes(ext)) mode = "image";
+            else if (['txt','md','json','js'].includes(ext)) mode = "text";
+            else if (['html','htm'].includes(ext)) mode = "html";
+        }
+
+        if (mode === "video") {
+            currentMedia = video; video.src = contentUrl; video.style.display = 'block'; video.play();
+        } else if (mode === "image") {
+            const img = document.getElementById('imgDisplay');
+            img.src = contentUrl; img.style.display = 'block';
+            currentMedia = { paused: true, duration: 0, currentTime: 0 };
+        } else if (mode === "text") {
+            const txt = document.getElementById('textDisplay');
+            txt.innerText = await file.text(); txt.style.display = 'block';
+            currentMedia = { paused: true, duration: 0, currentTime: 0 };
+        } else if (mode === "html") {
+            const ifr = document.getElementById('htmlDisplay');
+            ifr.src = contentUrl; ifr.style.display = 'block';
+            currentMedia = { paused: true, duration: 0, currentTime: 0 };
+        } else {
+            currentMedia = audio; audio.src = contentUrl; 
+            document.getElementById('audioVisual').style.display = 'flex';
+            audio.play();
+        }
+
+        currentIndex = index;
+        document.getElementById('track-name').innerText = file.name;
+        document.getElementById('file-format').innerText = mode.toUpperCase();
+        document.getElementById('playBtn').innerText = "Pausar";
+        renderPlaylist();
+    }
+
+    function togglePlay() {
+        if(!currentMedia.play) return;
+        if(currentMedia.paused) { currentMedia.play(); document.getElementById('playBtn').innerText="Pausar"; }
+        else { currentMedia.pause(); document.getElementById('playBtn').innerText="Tocar"; }
+    }
+
+    function nextTrack() {
+        if (config.repeat) return loadTrack(currentIndex);
+        let next = config.shuffle ? Math.floor(Math.random() * playlist.length) : currentIndex + 1;
+        if (next >= playlist.length) next = 0;
+        loadTrack(next);
+    }
+
+    function prevTrack() { if (currentIndex > 0) loadTrack(currentIndex - 1); }
+    function skipTime(s) { if(currentMedia.currentTime !== undefined) currentMedia.currentTime += s; }
+
+    setInterval(() => {
+        if(currentMedia && currentMedia.duration) {
+            document.getElementById('seekSlider').value = (currentMedia.currentTime / currentMedia.duration) * 100;
+            document.getElementById('track-time-display').innerText = `${formatTime(currentMedia.currentTime)} / ${formatTime(currentMedia.duration)}`;
+            if(currentMedia.ended) nextTrack();
+        }
+    }, 500);
+
+    function formatTime(s) {
+        let m = Math.floor(s / 60) || 0; let seg = Math.floor(s % 60) || 0;
+        return `${String(m).padStart(2,'0')}:${String(seg).padStart(2,'0')}`;
+    }
+
+    function renderPlaylist() {
+        const c = document.getElementById('playlist'); c.innerHTML = '';
+        playlist.forEach((f, i) => {
+            const d = document.createElement('div');
+            d.className = `playlist-item ${i===currentIndex?'active':''}`;
+            d.innerText = `${i+1}. ${f.name}`;
+            d.onclick = () => loadTrack(i);
+            c.appendChild(d);
+        });
+    }
+
+    function showContextMenu(e) {
+        e.preventDefault();
+        const m = document.getElementById('context-menu');
+        m.style.display = 'block'; m.style.left = e.pageX+'px'; m.style.top = e.pageY+'px';
+        document.getElementById('chk-shuffle').innerText = config.shuffle ? '✓' : '';
+        document.getElementById('chk-repeat').innerText = config.repeat ? '✓' : '';
+        return false;
+    }
+
+    function toggleOption(o) { config[o] = !config[o]; }
+    function clearPlaylist() { playlist = []; currentIndex = -1; renderPlaylist(); audio.pause(); video.pause(); }
+    document.onclick = () => document.getElementById('context-menu').style.display = 'none';
+    document.getElementById('volSlider').oninput = (e) => { audio.volume = video.volume = e.target.value; };
+    document.getElementById('seekSlider').oninput = (e) => {
+        if(currentMedia.duration) currentMedia.currentTime = (e.target.value / 100) * currentMedia.duration;
+    };
+
+    document.getElementById('generateBtn').onclick = async () => {
+        const f = document.getElementById('sourceFile').files[0];
+        if(!f) return;
+        const type = document.getElementById('mp5Type').value;
+        const bytes = new Uint8Array(await f.arrayBuffer());
+        let p="MP#", s="MP3";
+        if(type==='video'){s="MP4"} else if(type==='image'){p="MP1";s="MP1"} else if(type==='text'){s="MP#"}
+        const mp5 = new Uint8Array([...new TextEncoder().encode(p), ...bytes, ...new TextEncoder().encode(s)]);
+        const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([mp5])); a.download = f.name.split('.')[0] + ".mp5"; a.click();
+    };
+</script>
+</body>
+</html>
